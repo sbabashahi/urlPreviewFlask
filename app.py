@@ -16,8 +16,10 @@ def link_preview():
 
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.content)
+            meta_des = soup.find('meta', attrs={'name': 'description'})
             data = {
                 'title': soup.title.text if soup.title else '',
+                'description': meta_des['content'] if meta_des.get('content') else ''
             }
             return SuccessResponse(data).send()
         else:
