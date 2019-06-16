@@ -16,10 +16,10 @@ def link_preview():
 
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.content)
-            meta_des = soup.find('meta', attrs={'name': 'description'})
             data = {
-                'title': soup.title.text if soup.title else '',
-                'description': meta_des['content'] if meta_des.get('content') else ''
+                'title': get_title(soup),
+                'description': get_description(soup),
+                'image': get_image(soup),
             }
             return SuccessResponse(data).send()
         else:
@@ -48,6 +48,28 @@ class ErrorResponse:
 
     def send(self):
         return jsonify(self.__dict__)
+
+
+def get_title(soup):
+    return soup.title.text if soup.title else ''
+
+
+def get_description(soup):
+    meta_des = soup.find('meta', attrs={'name': 'description'})
+    if meta_des:
+        meta_des = meta_des['content'] if meta_des.get('content') else ''
+    else:
+        meta_des = ''
+    return meta_des
+
+
+def get_image(soup):
+    meta_img = soup.find('meta', attrs={'property': 'og:image'})
+    if meta_img:
+        meta_img = meta_img['content'] if meta_img.get('content') else ''
+    else:
+        meta_img = ''
+    return meta_img
 
 
 if __name__ == '__main__':
