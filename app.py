@@ -9,15 +9,18 @@ app = Flask(__name__)
 def link_preview():
     url = request.args.get('url')
     if url:
-        if not url.startswith('http'):
+        if '//' not in url:
             url = 'http://' + url
-
-        resp = requests.get(url)
-
+        try:
+            resp = requests.get(url)
+        except Exception as e:
+            return ErrorResponse(error=str(e), message='Error in connecting to url', ).send()
         if resp.status_code == 200:
-            soup = BeautifulSoup(resp.content)
+            soup = BeautifulSoup(resp.content, features='html.parser')
             data = {
                 'title': get_title(soup),
+                'site_name': get_site_name(soup),
+                'favicon': get_favicon(soup, url),
                 'description': get_description(soup),
                 'image': get_image(soup),
             }
@@ -70,6 +73,26 @@ def get_image(soup):
     else:
         meta_img = ''
     return meta_img
+
+
+def get_site_name(soup):
+    meta_site_name = soup.find('meta', attrs={'property': 'og:site_name'})
+    if meta_site_name and meta_site_name.get('content'):
+        meta_site_name = meta_site_name.get('content')
+    else:
+        meta_site_name = ''
+    return meta_site_name
+
+
+def get_favicon(soup, url):
+    meta_favicon = soup.find('link', attrs={'rel': 'icon'})
+    if meta_favicon and meta_favicon.get('href'):
+        meta_favicon = meta_favicon.get('href')
+        if meta_favicon.startswith('/'):
+            meta_favicon = '/'.join(url.split('/')[:3]) + meta_favicon
+    else:
+        meta_favicon = ''
+    return meta_favicon
 
 
 if __name__ == '__main__':
