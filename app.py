@@ -1,8 +1,12 @@
+import json
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify
+from flask_redis import FlaskRedis
 
 app = Flask(__name__)
+# app.config.from_object('config.default')
+cache = FlaskRedis(app)
 
 
 @app.route('/')
@@ -11,19 +15,24 @@ def link_preview():
     if url:
         if '//' not in url:
             url = 'http://' + url
-        try:
-            resp = requests.get(url)
-        except Exception as e:
-            return ErrorResponse(error=str(e), message='Error in connecting to url', ).send()
-        if resp.status_code == 200:
-            soup = BeautifulSoup(resp.content, features='html.parser')
-            data = {
-                'title': get_title(soup),
-                'site_name': get_site_name(soup),
-                'favicon': get_favicon(soup, url),
-                'description': get_description(soup),
-                'image': get_image(soup),
-            }
+            data = cache.get(url)
+            if not data:
+                try:
+                    resp = requests.get(url)
+                except Exception as e:
+                    return ErrorResponse(error=str(e), message='Error in connecting to url', ).send()
+                if resp.status_code == 200:
+                    soup = BeautifulSoup(resp.content, features='html.parser')
+                    data = {
+                        'title': get_title(soup),
+                        'site_name': get_site_name(soup),
+                        'favicon': get_favicon(soup, url),
+                        'description': get_description(soup),
+                        'image': get_image(soup),
+                    }
+                    cache.set(url, json.dumps(data), ex=10)
+            else:
+                data = json.loads(data)
             return SuccessResponse(data).send()
         else:
             return ErrorResponse(error='Error in getting resource.').send()
